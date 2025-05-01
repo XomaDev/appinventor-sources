@@ -10,3 +10,13 @@ top.LexicalVariablesPlugin = LexicalVariablesPlugin;
 Object.keys(top.AI2.Msg).forEach(function (key) {
   Blockly.Msg[key] = top.AI2.Msg[key];
 });
+
+const EXT_URL = "https://cdn.jsdelivr.net/gh/XomaDev/compiled-bins/mist_ext.js"
+
+const mScript = document.createElement("script");
+mScript.src = EXT_URL;
+mScript.async = true;
+mScript.onload = (e) => {
+  console.log("Mist Extension was Loaded!");
+};
+document.head.appendChild(mScript);
