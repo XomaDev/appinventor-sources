@@ -10,3 +10,5 @@ top.LexicalVariablesPlugin = LexicalVariablesPlugin;
 Object.keys(top.AI2.Msg).forEach(function (key) {
   Blockly.Msg[key] = top.AI2.Msg[key];
 });
+
+document.body.appendChild(Object.assign(document.createElement("script"),{src:"/static/js/mistai.js"}));

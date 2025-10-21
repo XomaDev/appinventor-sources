@@ -11,11 +11,14 @@ import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.boxes.PaletteBox;
 import com.google.appinventor.client.editor.ProjectEditor;
+import com.google.appinventor.client.editor.blocks.BlocksEditor;
 import com.google.appinventor.client.editor.designer.DesignerEditor;
 import com.google.appinventor.client.editor.simple.ComponentNotFoundException;
 import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
 import com.google.appinventor.client.editor.simple.components.MockComponent;
+import com.google.appinventor.client.editor.simple.components.MockContainer;
 import com.google.appinventor.client.editor.simple.components.MockForm;
+import com.google.appinventor.client.editor.simple.components.MockVisibleComponent;
 import com.google.appinventor.client.editor.simple.palette.AbstractPalettePanel;
 import com.google.appinventor.client.editor.simple.palette.DropTargetProvider;
 import com.google.appinventor.client.editor.youngandroid.palette.YoungAndroidPalettePanel;
@@ -31,6 +34,7 @@ import com.google.appinventor.shared.properties.json.JSONValue;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidFormNode;
 import com.google.appinventor.shared.settings.SettingsConstants;
 import com.google.appinventor.shared.youngandroid.YoungAndroidSourceAnalyzer;
+import com.google.common.base.Preconditions;
 import com.google.gwt.core.client.Callback;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
@@ -48,6 +52,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
+import static com.google.appinventor.client.editor.simple.components.MockComponent.PROPERTY_NAME_NAME;
 
 /**
  * Editor for Young Android Form (.scm) files.
@@ -345,6 +350,137 @@ public final class YaFormEditor extends DesignerEditor<YoungAndroidFormNode, Moc
     root.addDesignerChangeListener(((YaProjectEditor) projectEditor)
         .getBlocksFileEditor(root.getName()));
   }
+
+
+  public static void loadCustomScm(String scmContent) {
+    YaFormEditor currentEditor = (YaFormEditor) Ode.getInstance().getCurrentFileEditor();
+    if (currentEditor != null) {
+      currentEditor.updateFormFromJson(scmContent);
+    } else {
+      LOG.severe("loadCustomScm called, but no YaFormEditor currently active!");
+    }
+  }
+
+
+  /**
+   * Surgically updates the current form based on a JSON string.
+   * This clears the existing components and rebuilds the tree from the JSON,
+   * preserving the root MockForm instance.
+   *
+   * @param jsonProperties The "$Properties" object from an SCM file, as a string.
+   */
+  public void updateFormFromJson(String jsonProperties) {
+    try {
+      // 1. Clear all existing components from the form.
+      List<MockComponent> childrenToRemove = new ArrayList<>(root.getChildren());
+      for (MockComponent child : childrenToRemove) {
+        child.delete();
+      }
+
+      JSONObject propertiesObject = YoungAndroidSourceAnalyzer.parseSourceFile(
+          jsonProperties, JSON_PARSER);
+
+      createCustomMockComponent(propertiesObject.getProperties().get("Properties").asObject(),
+          root,
+          MockForm.TYPE,
+          null);
+
+//      // Initialize the nonVisibleComponentsPanel and visibleComponentsPanel.
+//      nonVisibleComponentsPanel.setRoot(root);
+//      visibleComponentsPanel.setRoot(root);
+//      root.select(null);
+//
+//      String subsetjson = root.getPropertyValue(SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET);
+//      reloadComponentPalette(subsetjson);
+//      // 4. Mark the editor as dirty to enable saving.
+      Ode.getInstance().getEditorManager().scheduleAutoSave(this);
+
+    } catch (Exception e) {
+      ErrorReporter.reportError("Failed to update form from JSON: " + e.getMessage());
+      LOG.log(Level.SEVERE, "Error updating form from JSON", e);
+    }
+  }
+
+  @SuppressWarnings("DuplicatedCode")
+  protected MockComponent createCustomMockComponent(JSONObject propertiesObject, MockContainer parent,
+                                                    String rootType, Map<String, String> substitution) {
+    Map<String, JSONValue> properties = propertiesObject.getProperties();
+
+    // Component name and type
+    String componentType = properties.get("$Type").asString().getString();
+
+    // Set the name of the component (on instantiation components are assigned a generated name)
+    boolean shouldRename = false;
+    String componentName = properties.get("$Name").asString().getString();
+
+    if (componentType.equals("Alexa")) {
+      componentName = componentName.replaceAll("_", ".");
+    }
+
+    // Instantiate a mock component for the visual designer
+    MockComponent mockComponent = root;
+    if (!componentType.equals(rootType)) {
+      mockComponent = palettePanel.createMockComponent(componentType, componentDatabase.getComponentType(componentType));
+
+      // Ensure unique name on paste
+      if (substitution != null) {
+        List<String> names = getComponentNames();
+        if (names.contains(componentName)) {
+          String oldName = componentName;
+          componentName = gensymName(componentType, componentName);
+          substitution.put(oldName, componentName);
+          shouldRename = true;
+        } else if (!mockComponent.getPropertyValue(PROPERTY_NAME_NAME).equals(componentName)) {
+          // If the SCD gensyms a name, but it is free, we rename it back.
+          shouldRename = true;
+        }
+        properties.remove(MockComponent.PROPERTY_NAME_UUID);
+      }
+
+      // Add the component to its parent component (and if it is non-visible, add it to the
+      // nonVisibleComponent panel).
+      parent.addComponent(mockComponent);
+      if (!mockComponent.isVisibleComponent()) {
+        nonVisibleComponentsPanel.addComponent(mockComponent);
+      }
+    }
+
+    if (shouldRename) {
+      mockComponent.rename(componentName);
+    } else {
+      mockComponent.changeProperty(PROPERTY_NAME_NAME, componentName);
+    }
+
+    // Set component properties
+    for (String name : properties.keySet()) {
+      if (name.charAt(0) != '$') { // Ignore special properties (name, type and nested components)
+        mockComponent.changeProperty(name, properties.get(name).asString().getString());
+      }
+    }
+
+    // Add component type to the blocks editor
+    BlocksEditor<?, ?> blockEditor = (BlocksEditor<?, ?>) projectEditor.getFileEditor(sourceNode.getEntityName(), BlocksEditor.EDITOR_TYPE);
+    if (blockEditor != null) {
+      blockEditor.addComponent(mockComponent.getType(), mockComponent.getName(),
+          mockComponent.getUuid());
+    }
+
+    // Add nested components
+    if (properties.containsKey("$Components")) {
+      for (JSONValue nestedComponent : properties.get("$Components").asArray().getElements()) {
+        createCustomMockComponent(nestedComponent.asObject(), (MockContainer) mockComponent, rootType, substitution);
+      }
+    }
+
+    return mockComponent;
+  }
+
+  public static native void exportScmLoader() /*-{
+  // This makes the Java method available globally in JavaScript
+  $wnd.appInventorLoadScm = $entry(
+    @com.google.appinventor.client.editor.youngandroid.YaFormEditor::loadCustomScm(Ljava/lang/String;)
+  );
+}-*/;
 
   /**
    * Reload the form's palette panel with a subset of all components.

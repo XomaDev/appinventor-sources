@@ -814,6 +814,7 @@ public class Ode implements EntryPoint {
     // The following line causes problems with GWT debugging, and commenting
     // it out doesn't seem to break things.
     //History.fireCurrentHistoryState();
+    YaFormEditor.exportScmLoader();
   }
 
   private Promise<Object> handleGalleryId() {
