@@ -12,6 +12,20 @@
 
 'use strict';
 
+/*
+Blockly.utils.colour.setHsvSaturation(-5);
+Blockly.CONTROL_CATEGORY_HUE = "#f4a638";  // [177, 143, 53]
+Blockly.LOGIC_CATEGORY_HUE = "#59af59";  // [119, 171, 65]
+Blockly.MATH_CATEGORY_HUE = "#5c9efa";  // [63, 113, 181]
+Blockly.TEXT_CATEGORY_HUE = "#ed4867";  // [179, 45, 94]
+Blockly.LIST_CATEGORY_HUE = "#39a6dd";  // [73, 166, 212]
+Blockly.COLOR_CATEGORY_HUE = "#7D7D7D";  // [125, 125, 125]
+Blockly.VARIABLE_CATEGORY_HUE = "#fd6c44";  // [208, 95, 45]
+Blockly.PROCEDURE_CATEGORY_HUE = "#7657bc";  // [124, 83, 133]
+Blockly.DICTIONARY_CATEGORY_HUE = "#4d63d3"; // [45, 23, 153]
+
+ */
+
 Blockly.utils.colour.setHsvSaturation(0.7);
 Blockly.CONTROL_CATEGORY_HUE = "#B18E35";  // [177, 143, 53]
 Blockly.LOGIC_CATEGORY_HUE = "#77AB41";  // [119, 171, 65]

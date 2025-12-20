@@ -518,6 +518,89 @@ Blockly.exportBlockAsPng = function(block) {
   });
 };
 
+Blockly.blockToPngBlob = function(block) {
+  return new Promise(function(resolve, reject) {
+    try {
+      var xml = document.createElement('xml');
+      xml.appendChild(Blockly.Xml.blockToDom(block, true));
+      var code = Blockly.Xml.domToText(xml);
+
+      svgAsDataUri(
+        block.svgGroup_,
+        block.workspace.getMetrics(),
+        null,
+        function(uri) {
+          var img = new Image();
+          img.src = uri;
+
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = 2 * img.width;
+            canvas.height = 2 * img.height;
+
+            var context = canvas.getContext('2d');
+            context.drawImage(
+              img,
+              0, 0, img.width, img.height,
+              0, 0, canvas.width, canvas.height
+            );
+
+            function processPng(png) {
+              png.setCodeChunk(code);
+
+              for (var i = 0; i < png.chunks.length; i++) {
+                var phy = [112, 72, 89, 115]; // "pHYs"
+                if (png.chunks[i].type === 'pHYs') {
+                  png.chunks.splice(
+                    i,
+                    1,
+                    new PNG.Chunk(9, 'pHYs', pHY_data, crc32(phy.concat(pHY_data)))
+                  );
+                  break;
+                } else if (png.chunks[i].type === 'IDAT') {
+                  png.chunks.splice(
+                    i,
+                    0,
+                    new PNG.Chunk(9, 'pHYs', pHY_data, crc32(phy.concat(pHY_data)))
+                  );
+                  break;
+                }
+              }
+
+              resolve(png.toBlob());
+            }
+
+            if (canvas.toBlob === undefined) {
+              // Fallback for older browsers
+              var src = canvas.toDataURL('image/png');
+              var base64img = src.split(',')[1];
+              var decoded = window.atob(base64img);
+              var rawLength = decoded.length;
+              var buffer = new Uint8Array(new ArrayBuffer(rawLength));
+
+              for (var i = 0; i < rawLength; i++) {
+                buffer[i] = decoded.charCodeAt(i);
+              }
+
+              var blob = new Blob([buffer], { type: 'image/png' });
+              new PNG().readFromBlob(blob, processPng);
+            } else {
+              canvas.toBlob(function(blob) {
+                new PNG().readFromBlob(blob, processPng);
+              });
+            }
+          };
+
+          img.onerror = reject;
+        }
+      );
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+
 /**
  * Extracts the block types from the given XML.
  * @param {Document} xml - The XML document containing blocks.

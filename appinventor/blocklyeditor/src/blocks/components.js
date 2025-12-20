@@ -296,15 +296,19 @@ Blockly.Blocks.component_event = {
     // default names specified in the component DB. Note that some parameter
     // names may be overridden while others may remain their defaults
     this.parameterNames = [];
-    var numParams = this.getDefaultParameters_().length
-    for (var i = 0; i < numParams; i++) {
-      var paramName = xmlElement.getAttribute('param_name' + i);
-      // For now, we only allow explicit parameter names starting at the beginning
-      // of the parameter list.  Some day we may allow an arbitrary subset of the
-      // event params to be explicitly specified.
-      if (!paramName) break;
-      this.parameterNames.push(paramName);
+
+    var args = xmlElement.getElementsByTagName('arg');
+    for (var i = 0; i < args.length; i++) {
+      var name = args[i].getAttribute('name');
+      if (!name) break;
+      this.parameterNames.push(name);
     }
+
+    this.compiledParams = [];
+    for (let k = 0; k < this.parameterNames.length; k++) {
+      this.compiledParams.push({name: this.parameterNames[k], type: ''});   // type can be empty});
+    }
+
 
     // Orient parameters horizontally by default
     var horizParams = xmlElement.getAttribute('vertical_parameters') !== "true";
@@ -330,7 +334,7 @@ Blockly.Blocks.component_event = {
       this.appendDummyInput('WHENTITLE').appendField(Blockly.Msg.LANG_COMPONENT_BLOCK_GENERIC_EVENT_TITLE
         + componentDb.getInternationalizedComponentType(this.typeName) + '.' + localizedEventName);
     }
-    this.setParameterOrientation(horizParams);
+    this.setParameterOrientation(horizParams, this.parameterNames);
     var tooltipDescription;
     if (eventType) {
       tooltipDescription = componentDb.getInternationalizedEventDescription(this.getTypeName(), eventType.name,
@@ -367,11 +371,17 @@ Blockly.Blocks.component_event = {
 
   // TODO: consider using top.BlocklyPanel... instead of window.parent.BlocklyPanel
 
-  setParameterOrientation: function(isHorizontal) {
-    var params = this.getParameters();
-    if (!params)  {
-      params = [];
+  setParameterOrientation: function(isHorizontal, paramNames) {
+    // instead of calling getParameters(), prepare the `params` from the
+    // paramNames, use this format `{name: "cat", type: ""}`
+    //  the type could be empty
+    var params = [];
+    if (Array.isArray(paramNames)) {
+      for (var k = 0; k < paramNames.length; k++) {
+        params.push({name: paramNames[k], type: ''});   // type can be empty});
+      }
     }
+
     var componentDb = this.getTopWorkspace().getComponentDatabase();
     var oldDoInput = this.getInput("DO");
     if (!oldDoInput || (isHorizontal !== this.horizontalParameters && params.length > 0)) {
@@ -449,7 +459,8 @@ Blockly.Blocks.component_event = {
       var paramName = explicitParameterNames[i] || defaultParameters[i].name;
       params.push({name: paramName, type: defaultParameters[i].type});
     }
-    return params;
+    console.log("normal parameters called: " + params);
+    return this.compiledParams;
   },
   getDefaultParameters_: function () {
     var eventType = this.getEventTypeObject();

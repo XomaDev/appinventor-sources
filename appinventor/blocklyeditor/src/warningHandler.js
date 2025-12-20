@@ -508,7 +508,7 @@ Blockly.WarningHandler.prototype['checkComponentNotExistsError'] = function(bloc
   var component_names = this.workspace.componentDb_.getInstanceNames();
   if (component_names.indexOf(block.instanceName) == -1) {
     var errorMessage = Blockly.Msg.ERROR_COMPONENT_DOES_NOT_EXIST;
-    block.setErrorIconText(errorMessage);
+    //block.setErrorIconText(errorMessage);
     return true;
   }
   return false;
@@ -520,7 +520,7 @@ Blockly.WarningHandler.prototype['checkComponentTypeNotExistsError'] = function(
   var type = this.workspace.componentDb_.getType(block.typeName);
   if (type == undefined) {
     var errorMessage = Blockly.Msg.ERROR_COMPONENT_DOES_NOT_EXIST;
-    block.setErrorIconText(errorMessage);
+    //block.setErrorIconText(errorMessage);
     return true;
   }
   return false;
