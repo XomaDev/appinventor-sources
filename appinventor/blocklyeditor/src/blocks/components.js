@@ -735,6 +735,7 @@ Blockly.Blocks.component_method = {
     this.componentDropDown = Blockly.ComponentBlock.createComponentDropDown(this);
     var oldRendered = this.rendered;
     this.rendered = false;
+    console.log("INPUT  LIST: " + this.inputList);
     var oldInputValues = [];
     for (var i = 0, input; input = this.inputList[i]; i++) {
       if (input.connection) {
@@ -838,10 +839,15 @@ Blockly.Blocks.component_method = {
     var params = [];
     if (methodTypeObject) {
       params = methodTypeObject.parameters;
+    } else {
+      // fallback: keep existing ARG inputs
+      params = oldInputValues.map((_, i) => ({ name: "ARG" + i }));
     }
+    console.log("PARAMS: " + params);
     oldInputValues.splice(0, oldInputValues.length - params.length);
     for (var i = 0, param; param = params[i]; i++) {
       var name = componentDb.getInternationalizedParameterName(param.name);
+      console.log("internationalized name: " + name);
       var check = this.getParamBlocklyType(param);
 
       var input = this.appendValueInput("ARG" + i)
@@ -860,18 +866,21 @@ Blockly.Blocks.component_method = {
 
     if (!methodTypeObject) {
       if (this.shape === 'statement') {
+        console.log("hit C");
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setOutput(false);
       } else if (this.shape === 'value') {
+        console.log("hit B");
         this.setOutput(true);
         this.setPreviousStatement(false);
         this.setNextStatement(false);
       } else {
         // In theory this shouldn't happen unless there's a new input type added to Blockly
+        console.log("hit A");
         this.setOutput(false);
-        this.setPreviousStatement(false);
-        this.setNextStatement(false);
+        this.setPreviousStatement(true);
+        this.setNextStatement(true);
       }
     } // methodType.returnType is a Yail type
     else if (methodTypeObject.returnType) {
